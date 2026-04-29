@@ -35,3 +35,10 @@
     path: /var/www/html/html
     state: absent
 # tasks file for webserver
+
+- name: Create databases
+  mysql_db:
+    name: "{{ item.name }}"
+    collation: "{{ item.collation }}"
+    encoding: "{{ item.encoding }}"
+  loop: "{{ mysql_databases }}"
