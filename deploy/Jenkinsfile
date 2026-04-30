@@ -21,6 +21,9 @@ pipeline {
       steps {
                 sh '/usr/bin/php7.4 -v'
                 sh 'mv .env.sample .env'
+                sh '''
+sed -i 's/DB_HOST=.*/DB_HOST=172.31.36.195/' .env
+'''
                 sh 'composer install'
                 sh '/usr/bin/php7.4 artisan key:generate'
                 sh '/usr/bin/php7.4 artisan migrate'
