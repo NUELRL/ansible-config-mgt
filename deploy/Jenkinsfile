@@ -18,18 +18,26 @@ pipeline {
     }
 
     stage('Prepare Dependencies') {
-      steps {
-                sh '/usr/bin/php7.4 -v'
-                sh 'mv .env.sample .env'
-                sh '''
-sed -i 's/DB_HOST=.*/DB_HOST=172.31.36.195/' .env
-'''
-                sh 'composer install'
-                sh '/usr/bin/php7.4 artisan key:generate'
-                sh '/usr/bin/php7.4 artisan migrate'
-                sh '/usr/bin/php7.4 artisan db:seed'
-                sh '/usr/bin/php7.4 artisan config:clear'
-                sh '/usr/bin/php7.4 artisan cache:clear'
+      steps {  sh '/usr/bin/php7.4 -v'
+    
+    sh 'mv .env.sample .env'
+
+    sh '''
+    sed -i 's/DB_HOST=.*/DB_HOST=172.31.36.195/' .env
+    '''
+
+    sh 'composer install'
+
+    //  CLEAR CACHE BEFORE ANY ARTISAN DB COMMAND
+    sh '/usr/bin/php7.4 artisan config:clear'
+    sh '/usr/bin/php7.4 artisan cache:clear'
+
+    // (optional but solid)
+    sh '/usr/bin/php7.4 artisan config:cache'
+
+    sh '/usr/bin/php7.4 artisan key:generate'
+    sh '/usr/bin/php7.4 artisan migrate'
+    sh '/usr/bin/php7.4 artisan db:seed'
       }
     }
   }
