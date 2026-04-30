@@ -19,11 +19,12 @@ pipeline {
 
     stage('Prepare Dependencies') {
       steps {
-             sh 'mv .env.sample .env'
-             sh 'composer install --ignore-platform-reqs'
-             sh 'php artisan migrate'
-             sh 'php artisan db:seed'
-             sh 'php artisan key:generate'
+                sh '/usr/bin/php7.4 -v'
+                sh 'mv .env.sample .env'
+                sh 'composer install'
+                sh '/usr/bin/php7.4 artisan key:generate'
+                sh '/usr/bin/php7.4 artisan migrate'
+                sh '/usr/bin/php7.4 artisan db:seed'
       }
     }
   }
