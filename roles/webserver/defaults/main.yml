@@ -6,6 +6,6 @@ mysql_databases:
 
 mysql_users:
   - name: homestead
-    host: "localhost"
+    host: "172.31.36.195"
     password: password
     priv: "*.*:ALL"
