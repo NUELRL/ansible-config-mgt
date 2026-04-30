@@ -31,23 +31,24 @@ pipeline {
                 sed -i 's/DB_PASSWORD=.*/DB_PASSWORD=password/' .env
                 '''
 
-                //  DEBUG (DON’T SKIP)
+                // DEBUG
                 sh 'cat .env'
 
-                // CLEAR CACHE BEFORE ANYTHING
+                // INSTALL DEPENDENCIES FIRST (VERY IMPORTANT)
+                sh 'composer install'
+
+                // NOW artisan will work
                 sh '/usr/bin/php7.4 artisan config:clear'
                 sh '/usr/bin/php7.4 artisan cache:clear'
                 sh 'rm -rf bootstrap/cache/*'
 
-                sh 'composer install'
-
                 sh '/usr/bin/php7.4 artisan key:generate'
 
-                //  Run DB BEFORE caching config
+                // DB operations
                 sh '/usr/bin/php7.4 artisan migrate'
                 sh '/usr/bin/php7.4 artisan db:seed'
 
-                // OPTIONAL: cache AFTER everything works
+                // Optional cache after success
                 sh '/usr/bin/php7.4 artisan config:cache'
             }
         }
