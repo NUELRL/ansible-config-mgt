@@ -1,44 +1,55 @@
 pipeline {
     agent any
 
-  stages {
+    stages {
 
-     stage("Initial cleanup") {
-          steps {
-            dir("${WORKSPACE}") {
-              deleteDir()
+        stage("Initial cleanup") {
+            steps {
+                dir("${WORKSPACE}") {
+                    deleteDir()
+                }
             }
-          }
         }
 
-    stage('Checkout SCM') {
-      steps {
-            git branch: 'main', url: 'https://github.com/NUELRL/php-todo'
-      }
+        stage('Checkout SCM') {
+            steps {
+                git branch: 'main', url: 'https://github.com/NUELRL/php-todo'
+            }
+        }
+
+        stage('Prepare Dependencies') {
+            steps {
+
+                sh '/usr/bin/php7.4 -v'
+
+                sh 'mv .env.sample .env'
+
+                sh '''
+                sed -i 's/DB_HOST=.*/DB_HOST=172.31.36.195/' .env
+                sed -i 's/DB_DATABASE=.*/DB_DATABASE=homestead/' .env
+                sed -i 's/DB_USERNAME=.*/DB_USERNAME=homestead/' .env
+                sed -i 's/DB_PASSWORD=.*/DB_PASSWORD=password/' .env
+                '''
+
+                //  DEBUG (DON’T SKIP)
+                sh 'cat .env'
+
+                // CLEAR CACHE BEFORE ANYTHING
+                sh '/usr/bin/php7.4 artisan config:clear'
+                sh '/usr/bin/php7.4 artisan cache:clear'
+                sh 'rm -rf bootstrap/cache/*'
+
+                sh 'composer install'
+
+                sh '/usr/bin/php7.4 artisan key:generate'
+
+                //  Run DB BEFORE caching config
+                sh '/usr/bin/php7.4 artisan migrate'
+                sh '/usr/bin/php7.4 artisan db:seed'
+
+                // OPTIONAL: cache AFTER everything works
+                sh '/usr/bin/php7.4 artisan config:cache'
+            }
+        }
     }
-
-    stage('Prepare Dependencies') {
-      steps {  sh '/usr/bin/php7.4 -v'
-    
-    sh 'mv .env.sample .env'
-
-    sh '''
-    sed -i 's/DB_HOST=.*/DB_HOST=172.31.36.195/' .env
-    '''
-
-    sh 'composer install'
-
-    //  CLEAR CACHE BEFORE ANY ARTISAN DB COMMAND
-    sh '/usr/bin/php7.4 artisan config:clear'
-    sh '/usr/bin/php7.4 artisan cache:clear'
-
-    // (optional but solid)
-    sh '/usr/bin/php7.4 artisan config:cache'
-
-    sh '/usr/bin/php7.4 artisan key:generate'
-    sh '/usr/bin/php7.4 artisan migrate'
-    sh '/usr/bin/php7.4 artisan db:seed'
-      }
-    }
-  }
 }
