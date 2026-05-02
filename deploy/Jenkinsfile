@@ -68,6 +68,7 @@ pipeline {
         stage('SonarQube Analysis') {
             environment {
                 scannerHome = tool 'SonarQubeScanner'
+                SONAR_SCANNER_OPTS = "--add-opens java.base/java.lang=ALL-UNNAMED"
             }
             steps {
                 withSonarQubeEnv('sonarqube') {
