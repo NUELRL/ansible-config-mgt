@@ -5,9 +5,7 @@ pipeline {
 
         stage("Initial cleanup") {
             steps {
-                dir("${WORKSPACE}") {
-                    deleteDir()
-                }
+                deleteDir()
             }
         }
 
@@ -19,7 +17,6 @@ pipeline {
 
         stage('Prepare Dependencies') {
             steps {
-
                 sh '/usr/bin/php7.4 -v'
 
                 sh 'mv .env.sample .env'
@@ -31,8 +28,6 @@ pipeline {
                 sed -i 's/DB_PASSWORD=.*/DB_PASSWORD=password/' .env
                 '''
 
-                sh 'cat .env'
-
                 sh 'composer install'
 
                 sh '/usr/bin/php7.4 artisan config:clear'
@@ -40,10 +35,8 @@ pipeline {
                 sh 'rm -rf bootstrap/cache/*'
 
                 sh '/usr/bin/php7.4 artisan key:generate'
-
                 sh '/usr/bin/php7.4 artisan migrate'
                 sh '/usr/bin/php7.4 artisan db:seed'
-
                 sh '/usr/bin/php7.4 artisan config:cache'
             }
         }
@@ -60,7 +53,7 @@ pipeline {
             }
         }
 
-        stage('Plot Code Coverage Report') {
+        stage('Plot Code Metrics') {
             steps {
                 plot csvFileName: 'plot.csv',
                      csvSeries: [[file: 'build/logs/phploc.csv']],
@@ -72,153 +65,56 @@ pipeline {
             }
         }
 
-
-        pipeline {
-    agent any
-
-    stages {
-
-        stage("Initial cleanup") {
+        stage('SonarQube Analysis') {
+            environment {
+                scannerHome = tool 'SonarQubeScanner'
+            }
             steps {
-                dir("${WORKSPACE}") {
-                    deleteDir()
+                withSonarQubeEnv('sonarqube') {
+                    withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
+                        sh """
+                        ${scannerHome}/bin/sonar-scanner \
+                          -Dsonar.projectKey=php-todo \
+                          -Dsonar.sources=app \
+                          -Dsonar.host.url=http://<YOUR-SONAR-IP>:9000 \
+                          -Dsonar.login=$SONAR_TOKEN
+                        """
+                    }
                 }
             }
         }
 
-        stage('Checkout SCM') {
+        stage('Quality Gate') {
             steps {
-                git branch: 'main', url: 'https://github.com/NUELRL/php-todo'
+                timeout(time: 2, unit: 'MINUTES') {
+                    waitForQualityGate abortPipeline: true
+                }
             }
         }
 
-        stage('Prepare Dependencies') {
+        stage('Package Artifact') {
             steps {
-
-                sh '/usr/bin/php7.4 -v'
-
-                sh 'mv .env.sample .env'
-
-                sh '''
-                sed -i 's/DB_HOST=.*/DB_HOST=172.31.36.195/' .env
-                sed -i 's/DB_DATABASE=.*/DB_DATABASE=homestead/' .env
-                sed -i 's/DB_USERNAME=.*/DB_USERNAME=homestead/' .env
-                sed -i 's/DB_PASSWORD=.*/DB_PASSWORD=password/' .env
-                '''
-
-                sh 'cat .env'
-
-                sh 'composer install'
-
-                sh '/usr/bin/php7.4 artisan config:clear'
-                sh '/usr/bin/php7.4 artisan cache:clear'
-                sh 'rm -rf bootstrap/cache/*'
-
-                sh '/usr/bin/php7.4 artisan key:generate'
-
-                sh '/usr/bin/php7.4 artisan migrate'
-                sh '/usr/bin/php7.4 artisan db:seed'
-
-                sh '/usr/bin/php7.4 artisan config:cache'
+                sh 'zip -qr php-todo.zip ${WORKSPACE}/*'
             }
         }
 
-        stage('Execute Unit Tests') {
+        stage('Upload Artifact to Artifactory') {
             steps {
-                sh './vendor/bin/phpunit'
+                script { 
+                    def server = Artifactory.server 'artifactory-server'                 
+                    def uploadSpec = """{
+                        "files": [
+                          {
+                           "pattern": "php-todo.zip",
+                           "target": "php-todo-app-generic-local/php-todo",
+                           "props": "type=zip;status=ready"
+                          }
+                        ]
+                    }""" 
+
+                    server.upload spec: uploadSpec
+                }
             }
         }
-
-        stage('Code Analysis') {
-            steps {
-                sh 'phploc app/ --log-csv build/logs/phploc.csv'
-            }
-        }
-
-        stage('Plot Code Coverage Report') {
-            steps {
-                plot csvFileName: 'plot.csv',
-                     csvSeries: [[file: 'build/logs/phploc.csv']],
-                     group: 'phploc',
-                     numBuilds: '100',
-                     style: 'line',
-                     title: 'Code Metrics',
-                     yaxis: 'Values'
-            }
-        }
-
-        stage ('Package Artifact') {
-    steps {
-            sh 'zip -qr php-todo.zip ${WORKSPACE}/*'
-     }
-    }
-
-        stage ('Upload Artifact to Artifactory') {
-          steps {
-            script { 
-                 def server = Artifactory.server 'artifactory-server'                 
-                 def uploadSpec = """{
-                    "files": [
-                      {
-                       "pattern": "php-todo.zip",
-                       "target": "php-todo-app-generic-local/php-todo",
-                       "props": "type=zip;status=ready"
-
-                       }
-                    ]
-                 }""" 
-
-                 server.upload spec: uploadSpec
-               }
-            }
-
-        }
-
-
-            stage('SonarQube Quality Gate') {
-        environment {
-            scannerHome = tool 'SonarQubeScanner'
-        }
-        steps {
-            withSonarQubeEnv('sonarqube') {
-                sh "${scannerHome}/bin/sonar-scanner"
-            }
-
-        }
-    }
-
-
-    }
-}
-
-        stage ('Package Artifact') {
-    steps {
-            sh 'zip -qr php-todo.zip ${WORKSPACE}/*'
-     }
-    }
-
-        stage ('Upload Artifact to Artifactory') {
-          steps {
-            script { 
-                 def server = Artifactory.server 'artifactory-server'                 
-                 def uploadSpec = """{
-                    "files": [
-                      {
-                       "pattern": "php-todo.zip",
-                       "target": "php-todo-app-generic-local/php-todo",
-                       "props": "type=zip;status=ready"
-
-                       }
-                    ]
-                 }""" 
-
-                 server.upload spec: uploadSpec
-               }
-            }
-
-        }
-
-
-        
     }
 }
