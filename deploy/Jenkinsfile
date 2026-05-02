@@ -76,7 +76,7 @@ pipeline {
                         ${scannerHome}/bin/sonar-scanner \
                           -Dsonar.projectKey=php-todo \
                           -Dsonar.sources=app \
-                          -Dsonar.host.url=http://172.31.40.175:9000 \
+                          -Dsonar.host.url=http://172.31.32.17:9000 \
                           -Dsonar.login=$SONAR_TOKEN
                         '''
                     }
